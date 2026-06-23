@@ -1,6 +1,3 @@
-// monitor.js — drop this into your Express app
-// Usage: const monitor = require('./monitor'); app.use(monitor.middleware); app.use('/monitor', monitor.router);
-
 const express = require('express');
 const router = express.Router();
 
