@@ -10,7 +10,6 @@ const state = {
   startTime: Date.now(),
 };
 
-// ─── Middleware: attach to app.use() before your routes ───────────────────────
 function middleware(req, res, next) {
   const start = process.hrtime.bigint();
 
@@ -30,7 +29,6 @@ function middleware(req, res, next) {
     state.requests.push(entry);
     if (state.requests.length > MAX_LOGS) state.requests.shift();
 
-    // Console log with colour codes (remove if you prefer silent)
     const color = entry.status >= 500 ? '\x1b[31m' : entry.status >= 400 ? '\x1b[33m' : '\x1b[32m';
     const reset = '\x1b[0m';
     const slow = entry.ms > 500 ? ' ⚠ SLOW' : '';
@@ -39,8 +37,7 @@ function middleware(req, res, next) {
 
   next();
 }
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
+// Helpers
 function getWindowReqs(windowMs = 60_000) {
   const cutoff = Date.now() - windowMs;
   return state.requests.filter(r => r.ts >= cutoff);
@@ -119,8 +116,6 @@ function formatUptime(sec) {
   return [d && `${d}d`, h && `${h}h`, m && `${m}m`, `${s}s`].filter(Boolean).join(' ');
 }
 
-// ─── Routes: mount at any prefix, e.g. app.use('/monitor', monitor.router) ───
-
 // GET /monitor/health — lightweight liveness probe (for Render, Railway, etc.)
 router.get('/health', (req, res) => {
   res.json({ status: 'ok', uptime: formatUptime(Math.floor((Date.now() - state.startTime) / 1000)) });
@@ -140,50 +135,6 @@ router.get('/logs', (req, res) => {
   res.json({ count: logs.length, logs });
 });
 
-// ─── Exports ──────────────────────────────────────────────────────────────────
+//  Exports 
 module.exports = { middleware, router };
 
-/*
-  ── SETUP IN YOUR app.js / index.js ──────────────────────────────────────────
-
-  const express = require('express');
-  const monitor = require('./monitor');
-
-  const app = express();
-
-  // 1. Attach middleware BEFORE your routes
-  app.use(monitor.middleware);
-
-  // 2. Mount the monitor dashboard routes
-  app.use('/monitor', monitor.router);
-
-  // 3. Your normal routes go here
-  app.use('/api/users', userRouter);
-  // ...
-
-  app.listen(3000, () => console.log('Server running on port 3000'));
-
-  ── ENDPOINTS YOU GET ─────────────────────────────────────────────────────────
-
-  GET /monitor/health   → { status: 'ok', uptime: '2h 14m 7s' }
-  GET /monitor/metrics  → full JSON: rpm, error rate, p95, memory, alerts, top endpoints
-  GET /monitor/logs     → last 50 requests  (?limit=20&status=500 for filtering)
-
-  ── OPTIONAL: ALERT WEBHOOK ───────────────────────────────────────────────────
-
-  Add this block to computeStats() or run it on a setInterval to push alerts
-  to Slack, Discord, or any webhook:
-
-  async function notifySlack(msg) {
-    const WEBHOOK = process.env.SLACK_WEBHOOK_URL;
-    if (!WEBHOOK) return;
-    await fetch(WEBHOOK, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: `🚨 *Express Monitor*: ${msg}` }),
-    });
-  }
-
-  // Call inside buildAlerts() for level === 'error':
-  // notifySlack(alert.msg);
-*/
